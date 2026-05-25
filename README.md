@@ -1,2 +1,4 @@
 # apz-pzpi-23-6-kavresiev-mykyta
-apz-pzpi-23-6-kavresiev-mykyta
+ПЗПІ-23-6
+Кавресєв Микита
+Програмна система для офтальмологічних клінік
