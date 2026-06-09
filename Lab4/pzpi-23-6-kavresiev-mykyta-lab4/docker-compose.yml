@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ophthalmica_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ophthalmica_db
+      POSTGRES_USER: ophthalmica_user
+      POSTGRES_PASSWORD: ophthalmica_password
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "55432:5432"
+    volumes:
+      - ophthalmica_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      ophthalmica_network:
+        aliases:
+          - postgres
+          - ophthalmica_postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ophthalmica_user -d ophthalmica_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/ophthalmica_db?options=-c%20TimeZone=UTC
+      DB_USERNAME: ophthalmica_user
+      DB_PASSWORD: ophthalmica_password
+      IOT_DEVICE_URL: http://iot-device:8090
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      iot-device:
+        condition: service_started
+    networks:
+      - ophthalmica_network
+
+  iot-device:
+    build:
+      context: ./iot-device
+    container_name: ophthalmica_iot_device
+    restart: always
+    ports:
+      - "8090:8090"
+    networks:
+      - ophthalmica_network
+
+  nginx:
+    image: nginx:latest
+    container_name: ophthalmica_nginx
+    restart: always
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - ophthalmica_network
+
+volumes:
+  ophthalmica_data:
+
+networks:
+  ophthalmica_network:
+    driver: bridge
